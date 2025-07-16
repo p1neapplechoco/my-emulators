@@ -1,0 +1,11 @@
+compile: build run
+
+build:
+	g++ main.cpp \
+    -I "C:/ProgramData/mingw64/mingw64/include" \
+    -L "C:/ProgramData/mingw64/mingw64/lib" \
+    -lSDL3 \
+    -o main.exe
+
+run:
+	./main.exe
