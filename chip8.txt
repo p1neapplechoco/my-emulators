@@ -102,11 +102,8 @@ void CHIP8::emulateCycle()
     pc_ += 2;
     execute();
 
-    if (delay_timer_ > 0)
-        delay_timer_--;
-
-    if (sound_timer_ > 0)
-        sound_timer_--;
+    delay_timer_--;
+    sound_timer_--;
 }
 
 // DEBUG METHODS
@@ -122,7 +119,7 @@ void CHIP8::debugDisplay()
     {
         for (size_t j = 0; j < SCREEN_W; j++)
         {
-            if (gfx_[i * SCREEN_W + j] == 1)
+            if (gfx_[i * SCREEN_H + j] == 1)
                 std::cout << "0";
             else
                 std::cout << " ";
@@ -248,8 +245,6 @@ void CHIP8::drawSprite()
     uint8_t Y = V_[yh(opcode_)];
     uint8_t N = yl(opcode_);
 
-    V_[0xF] = 0;
-
     for (int _y = 0; _y < N; _y++)
     {
         uint8_t pixels = mem_[I_ + _y];
@@ -370,7 +365,7 @@ void CHIP8::getDT(const uint8_t &x)
 
 void CHIP8::setDT(const uint8_t &x)
 {
-    delay_timer_ = V_[x];
+    V_[x] = delay_timer_;
 }
 
 // INSTRUCTION HANDLING
@@ -450,59 +445,12 @@ void CHIP8::handle7xxx()
 
 void CHIP8::handle8xxx()
 {
+    if (yl(opcode_) != 0x00)
+        return;
     uint8_t x = xl(opcode_);
     uint8_t y = yh(opcode_);
 
-    switch (yl(opcode_))
-    {
-    case 0x0000:
-    {
-        setVxVy(x, y);
-        break;
-    }
-    case 0x0001:
-    {
-        orVxVy(x, y);
-        break;
-    }
-    case 0x0002:
-    {
-        andVxVy(x, y);
-        break;
-    }
-    case 0x0003:
-    {
-        xorVxVy(x, y);
-        break;
-    }
-    case 0x0004:
-    {
-        addVxVy(x, y);
-        break;
-    }
-    case 0x0005:
-    {
-        subVxVy(x, y);
-        break;
-    }
-    case 0x0006:
-    {
-        shrVx(x);
-        break;
-    }
-    case 0x0007:
-    {
-        subnVxVy(x, y);
-        break;
-    }
-    case 0x000E:
-    {
-        shlVx(x);
-        break;
-    }
-    default:
-        break;
-    }
+    setVxVy(x, y);
 }
 
 void CHIP8::handle9xxx()

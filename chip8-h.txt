@@ -70,6 +70,7 @@ private:
     using instr = void (CHIP8::*)();
 
     static instr opcode_table_[16];
+    static instr subTable8_[15];
 
     void handle0xxx();
     void handle1xxx();
