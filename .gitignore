@@ -31,3 +31,4 @@
 *.out
 *.app
 /CHIP-8/.vscode
+/.vscode

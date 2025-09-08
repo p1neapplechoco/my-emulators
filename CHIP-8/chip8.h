@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <SDL3/SDL.h>
 
 // CONSTANT VALUES
 static constexpr std::size_t MEM_SIZE = 4096;
@@ -41,6 +42,11 @@ public:
 
     void initialize();
     void emulateCycle();
+
+    // Getters
+    bool drawFlag() const { return drawF_; }
+    const uint8_t *getGfx() const { return gfx_; }
+    const uint8_t getSoundTimer() const { return sound_timer_; }
 
     // Debug methods
     void debugDisplay();
