@@ -48,6 +48,9 @@ public:
     const uint8_t *getGfx() const { return gfx_; }
     const uint8_t getSoundTimer() const { return sound_timer_; }
 
+    // Setters
+    void setKey(const uint8_t &key, const uint8_t &value) { key_[key] = value; }
+
     // Debug methods
     void debugDisplay();
 
@@ -129,6 +132,9 @@ private:
     void jumpToAddress(const uint16_t &);
     void jumpToAddressV0(const uint16_t &);
     void callSubroutine(const uint16_t &);
+
+    // KeyOp based
+    void keyPress(const uint8_t &);
 
     // Math based
     void addVxVy(const uint8_t &, const uint8_t &);

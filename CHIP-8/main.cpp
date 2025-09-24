@@ -9,47 +9,45 @@ const int WINDOW_HEIGHT = 320;
 
 using namespace std;
 
-int main()
-{
-    CHIP8 chip8;
-    chip8.initialize();
-    string rom_folder = "./test-suite/";
-    string rom = "2";
-    chip8.loadROM(rom_folder + rom + ".ch8");
-    while (true)
-    {
-        chip8.emulateCycle();
-
-        if (chip8.drawFlag())
-            chip8.debugDisplay();
-    }
-}
-
 // int main()
 // {
-//     SDLEmulator emulator;
-//     emulator.initialize();
-//     emulator.interpreter->initialize();
-
+//     CHIP8 chip8;
+//     chip8.initialize();
 //     string rom_folder = "./test-suite/";
-//     string rom = "5";
-
-//     emulator.interpreter->loadROM(rom_folder + rom + ".ch8");
-
-//     while (emulator.running)
+//     string rom = "2";
+//     chip8.loadROM(rom_folder + rom + ".ch8");
+//     for (;;)
 //     {
-//         while (SDL_PollEvent(&emulator.event))
-//         {
-//             if (emulator.event.type == SDL_EVENT_QUIT)
-//             {
-//                 emulator.running = false;
-//             }
-//         }
-
-//         emulator.interpreter->emulateCycle();
-//         emulator.updateGraphics();
-//         SDL_Delay(2); // Adjust delay for speed control
+//         chip8.emulateCycle();
+//         chip8.debugDisplay();
 //     }
-
-//     return 0;
 // }
+
+int main()
+{
+    SDLEmulator emulator;
+    emulator.initialize();
+    emulator.interpreter->initialize();
+
+    string rom_folder = "./test-suite/";
+    string rom = "5";
+
+    emulator.interpreter->loadROM(rom_folder + rom + ".ch8");
+
+    while (emulator.running)
+    {
+        while (SDL_PollEvent(&emulator.event))
+        {
+            if (emulator.event.type == SDL_EVENT_QUIT)
+            {
+                emulator.running = false;
+            }
+        }
+        emulator.processInput();
+        emulator.interpreter->emulateCycle();
+        emulator.updateGraphics();
+        SDL_Delay(3); // Adjust delay for speed control
+    }
+
+    return 0;
+}

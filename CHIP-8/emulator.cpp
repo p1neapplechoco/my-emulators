@@ -1,6 +1,27 @@
 #include "emulator.h"
 #include <iostream>
 
+// KEY MAPPING
+
+const uint8_t key_mapping[KEYPAD_KEYS] = {
+    SDL_SCANCODE_1, // 0
+    SDL_SCANCODE_2, // 1
+    SDL_SCANCODE_3, // 2
+    SDL_SCANCODE_4, // 3
+    SDL_SCANCODE_Q, // 4
+    SDL_SCANCODE_W, // 5
+    SDL_SCANCODE_E, // 6
+    SDL_SCANCODE_R, // 7
+    SDL_SCANCODE_A, // 8
+    SDL_SCANCODE_S, // 9
+    SDL_SCANCODE_D, // A
+    SDL_SCANCODE_F, // B
+    SDL_SCANCODE_Z, // C
+    SDL_SCANCODE_X, // D
+    SDL_SCANCODE_C, // E
+    SDL_SCANCODE_V  // F
+};
+
 // CONSTRUCTOR
 SDLEmulator::SDLEmulator()
 {
@@ -77,4 +98,18 @@ void SDLEmulator::updateGraphics()
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
+}
+
+void SDLEmulator::processInput()
+{
+    // get the current state of the keyboard
+    const bool *state = SDL_GetKeyboardState(NULL);
+
+    for (uint8_t i = 0; i < KEYPAD_KEYS; i++)
+    {
+        if (state[key_mapping[i]])
+            interpreter->setKey(i, 1);
+        else
+            interpreter->setKey(i, 0);
+    }
 }

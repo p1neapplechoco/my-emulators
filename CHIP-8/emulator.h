@@ -22,4 +22,5 @@ public:
 
     void initialize();
     void updateGraphics();
+    void processInput();
 };

@@ -293,9 +293,24 @@ void CHIP8::callSubroutine(const uint16_t &address)
     pc_ = address;
 }
 
-// KeyOp
+// KeyOp based
 
-// TODO:
+void CHIP8::keyPress(const uint8_t &x)
+{
+    bool key_pressed = false;
+    for (uint8_t i = 0; i < KEYPAD_KEYS; i++)
+    {
+        if (key_[i] != 0)
+        {
+            V_[x] = i;
+            key_pressed = true;
+            break;
+        }
+    }
+
+    if (!key_pressed)
+        pc_ -= 2; // Repeat this instruction until a key is pressed
+}
 
 // Math based
 
@@ -548,7 +563,22 @@ void CHIP8::handleDxxx()
 
 void CHIP8::handleExxx()
 {
-    cpuNULL();
+    if (low(opcode_) != 0x009E && low(opcode_) != 0x00A1)
+        return;
+
+    uint8_t x = xl(opcode_);
+    uint8_t key = V_[x];
+
+    if (low(opcode_) == 0x009E)
+    {
+        if (key_[key] != 0)
+            pc_ += 2;
+    }
+    else if (low(opcode_) == 0x00A1)
+    {
+        if (key_[key] == 0)
+            pc_ += 2;
+    }
 }
 
 void CHIP8::handleFxxx()
@@ -559,7 +589,7 @@ void CHIP8::handleFxxx()
     {
     case 0x000A:
     {
-        cpuNULL();
+        keyPress(x);
         break;
     }
     case 0x001E:
