@@ -124,6 +124,7 @@ private:
     void drawSprite();
 
     // Const based
+    void resetFlagRegister();
     void setRegister(const uint8_t &, const uint8_t &);
     void addToRegister(const uint8_t &, const uint8_t &);
 

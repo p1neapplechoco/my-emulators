@@ -228,6 +228,11 @@ void CHIP8::skipIfNotEqual(const uint8_t &lhs, const uint8_t &rhs)
 
 // Const based
 
+void CHIP8::resetFlagRegister()
+{
+    V_[0xF] = 0;
+}
+
 void CHIP8::setRegister(const uint8_t &x, const uint8_t &val)
 {
     V_[x] = val;
@@ -261,9 +266,13 @@ void CHIP8::drawSprite()
         {
             if ((pixels & (0x80 >> _x)) != 0x0) // if the pixel is 1
             {
-                if (gfx_[X + _x + ((Y + _y) * SCREEN_W)] == 1) // if any screen pixel is flipped
+                int coord_x = (X + _x) % SCREEN_W;
+                int coord_y = (Y + _y) % SCREEN_H;
+
+                if (gfx_[coord_x + (coord_y * SCREEN_W)] == 1) // if any screen pixel is flipped
                     V_[0xF] = 1;
-                gfx_[X + _x + ((Y + _y) * SCREEN_W)] ^= 1;
+
+                gfx_[coord_x + (coord_y * SCREEN_W)] ^= 1;
             }
         }
     }
@@ -483,16 +492,19 @@ void CHIP8::handle8xxx()
     }
     case 0x0001:
     {
+        resetFlagRegister();
         orVxVy(x, y);
         break;
     }
     case 0x0002:
     {
+        resetFlagRegister();
         andVxVy(x, y);
         break;
     }
     case 0x0003:
     {
+        resetFlagRegister();
         xorVxVy(x, y);
         break;
     }

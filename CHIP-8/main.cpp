@@ -30,7 +30,7 @@ int main()
     emulator.interpreter->initialize();
 
     string rom_folder = "./test-suite/";
-    string rom = "5";
+    string rom = "6";
 
     emulator.interpreter->loadROM(rom_folder + rom + ".ch8");
 
@@ -43,10 +43,11 @@ int main()
                 emulator.running = false;
             }
         }
+
         emulator.processInput();
         emulator.interpreter->emulateCycle();
         emulator.updateGraphics();
-        SDL_Delay(3); // Adjust delay for speed control
+        SDL_Delay(2); // Adjust delay for speed control
     }
 
     return 0;

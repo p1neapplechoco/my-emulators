@@ -2,7 +2,6 @@
 #include <iostream>
 
 // KEY MAPPING
-
 const uint8_t key_mapping[KEYPAD_KEYS] = {
     SDL_SCANCODE_1, // 0
     SDL_SCANCODE_2, // 1
