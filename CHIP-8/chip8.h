@@ -109,8 +109,8 @@ private:
     void orVxVy(const uint8_t &, const uint8_t &);
     void andVxVy(const uint8_t &, const uint8_t &);
     void xorVxVy(const uint8_t &, const uint8_t &);
-    void shrVx(const uint8_t &);
-    void shlVx(const uint8_t &);
+    void shrVx(const uint8_t &, const uint8_t &);
+    void shlVx(const uint8_t &, const uint8_t &);
 
     // Conditional branching based
     void skipIfEqual(const uint8_t &, const uint8_t &);

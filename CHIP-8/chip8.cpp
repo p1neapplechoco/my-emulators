@@ -198,14 +198,18 @@ void CHIP8::xorVxVy(const uint8_t &x, const uint8_t &y)
     V_[x] ^= V_[y];
 }
 
-void CHIP8::shrVx(const uint8_t &x)
+void CHIP8::shrVx(const uint8_t &x, const uint8_t &y)
 {
-    V_[x] >>= 1;
+    uint8_t src = V_[y];
+    V_[x] = src >> 1;
+    V_[0xF] = (src & 0x01);
 }
 
-void CHIP8::shlVx(const uint8_t &x)
+void CHIP8::shlVx(const uint8_t &x, const uint8_t &y)
 {
-    V_[x] <<= 1;
+    uint8_t src = V_[y];
+    V_[x] = src << 1;
+    V_[0xF] = (src & 0x80) >> 7;
 }
 
 // Conditional branching based
@@ -298,20 +302,22 @@ void CHIP8::callSubroutine(const uint16_t &address)
 void CHIP8::addVxVy(const uint8_t &x, const uint8_t &y)
 {
     uint16_t sum = V_[x] + V_[y];
+    V_[x] = sum & 0xFF;
     V_[0xF] = (sum > 0xFF);
-    V_[x] = sum & 0x00FF;
 }
 
 void CHIP8::subVxVy(const uint8_t &x, const uint8_t &y)
 {
-    V_[0xF] = (V_[x] >= V_[y]);
+    uint8_t borrow = (V_[x] >= V_[y]);
     V_[x] = (V_[x] - V_[y]) & 0xFF;
+    V_[0xF] = borrow;
 }
 
 void CHIP8::subnVxVy(const uint8_t &x, const uint8_t &y)
 {
-    V_[0xF] = (V_[y] >= V_[x]);
+    uint8_t borrow = (V_[x] <= V_[y]);
     V_[x] = (V_[y] - V_[x]) & 0xFF;
+    V_[0xF] = borrow;
 }
 
 // Memory based
@@ -487,7 +493,7 @@ void CHIP8::handle8xxx()
     }
     case 0x0006:
     {
-        shrVx(x);
+        shrVx(x, y);
         break;
     }
     case 0x0007:
@@ -497,7 +503,7 @@ void CHIP8::handle8xxx()
     }
     case 0x000E:
     {
-        shlVx(x);
+        shlVx(x, y);
         break;
     }
     default:

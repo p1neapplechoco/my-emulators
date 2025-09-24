@@ -48,10 +48,7 @@ void SDLEmulator::updateGraphics()
     if (!interpreter->drawFlag())
         return;
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    // Clear screen
 
     const uint8_t *gfx = interpreter->getGfx();
 
@@ -61,15 +58,23 @@ void SDLEmulator::updateGraphics()
         {
             if (gfx[y * SCREEN_W + x] == 1)
             {
-                SDL_FRect pixelRect = {
-                    static_cast<float>(x * PIXEL_W),
-                    static_cast<float>(y * PIXEL_H),
-                    static_cast<float>(PIXEL_W),
-                    static_cast<float>(PIXEL_H)};
-                SDL_RenderFillRect(renderer, &pixelRect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             }
+            else
+            {
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            }
+
+            SDL_FRect pixelRect = {
+                static_cast<float>(x * PIXEL_W),
+                static_cast<float>(y * PIXEL_H),
+                static_cast<float>(PIXEL_W),
+                static_cast<float>(PIXEL_H)};
+            SDL_RenderFillRect(renderer, &pixelRect);
         }
     }
 
     SDL_RenderPresent(renderer);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
 }
