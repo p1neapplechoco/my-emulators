@@ -22,5 +22,7 @@ public:
 
     void initialize();
     void updateGraphics();
+
+    void handleKey(SDL_Scancode, bool);
     void processInput();
 };
