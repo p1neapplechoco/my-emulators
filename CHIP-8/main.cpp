@@ -4,24 +4,7 @@
 #include <string>
 #include <SDL3/SDL.h>
 
-const int WINDOW_WIDTH = 640;
-const int WINDOW_HEIGHT = 320;
-
 using namespace std;
-
-// int main()
-// {
-//     CHIP8 chip8;
-//     chip8.initialize();
-//     string rom_folder = "./test-suite/";
-//     string rom = "2";
-//     chip8.loadROM(rom_folder + rom + ".ch8");
-//     for (;;)
-//     {
-//         chip8.emulateCycle();
-//         chip8.debugDisplay();
-//     }
-// }
 
 int main()
 {
@@ -29,25 +12,47 @@ int main()
     emulator.initialize();
     emulator.interpreter->initialize();
 
-    string rom_folder = "./test-suite/";
-    string rom = "6";
-
-    emulator.interpreter->loadROM(rom_folder + rom + ".ch8");
+    Uint64 lastTick = SDL_GetTicks();
 
     while (emulator.running)
     {
-        while (SDL_PollEvent(&emulator.event))
-        {
-            if (emulator.event.type == SDL_EVENT_QUIT)
-            {
-                emulator.running = false;
-            }
-        }
+        emulator.processEvents();
 
-        emulator.processInput();
-        emulator.interpreter->emulateCycle();
-        emulator.updateGraphics();
-        SDL_Delay(2); // Adjust delay for speed control
+        Uint64 now = SDL_GetTicks();
+        Uint64 interval = static_cast<Uint64>(emulator.config.frameIntervalMs);
+
+        if (now - lastTick >= interval)
+        {
+            lastTick = now;
+
+            // Clear the entire screen
+            SDL_SetRenderDrawColor(emulator.renderer, 0, 0, 0, 255);
+            SDL_RenderClear(emulator.renderer);
+
+            if (emulator.romLoaded && !emulator.paused)
+            {
+                for (int i = 0; i < emulator.config.cyclesPerFrame; i++)
+                {
+                    emulator.processEvents();
+                    emulator.interpreter->emulateCycle();
+                }
+
+                emulator.interpreter->updateTimers();
+            }
+
+            // Draw CHIP-8 display
+            emulator.updateGraphics();
+
+            // Draw ImGui UI on top
+            emulator.renderUI();
+
+            // Present everything
+            SDL_RenderPresent(emulator.renderer);
+        }
+        else
+        {
+            SDL_Delay(1);
+        }
     }
 
     return 0;

@@ -92,16 +92,52 @@ void CHIP8::initialize()
     delay_timer_ = 0x00;
     sound_timer_ = 0x00;
 
+    // Reset key wait state
+    waitingForKey_ = false;
+    waitKeyReg_ = 0;
+    waitKeyValue_ = -1;
+
     // Set RNG
     srand(time(NULL));
 }
 
 void CHIP8::emulateCycle()
 {
+    // If waiting for a key release (FX0A), check each cycle
+    if (waitingForKey_)
+    {
+        if (waitKeyValue_ < 0)
+        {
+            // Phase 1: waiting for any key to be pressed
+            for (uint8_t i = 0; i < KEYPAD_KEYS; i++)
+            {
+                if (key_[i] != 0)
+                {
+                    waitKeyValue_ = i;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Phase 2: a key was pressed, wait for it to be released
+            if (key_[waitKeyValue_] == 0)
+            {
+                V_[waitKeyReg_] = waitKeyValue_;
+                waitingForKey_ = false;
+                waitKeyValue_ = -1;
+            }
+        }
+        return; // Don't execute any other instruction while waiting
+    }
+
     fetch();
     pc_ += 2;
     execute();
+}
 
+void CHIP8::updateTimers()
+{
     if (delay_timer_ > 0)
         delay_timer_--;
 
@@ -306,19 +342,9 @@ void CHIP8::callSubroutine(const uint16_t &address)
 
 void CHIP8::keyPress(const uint8_t &x)
 {
-    bool key_pressed = false;
-    for (uint8_t i = 0; i < KEYPAD_KEYS; i++)
-    {
-        if (key_[i] != 0)
-        {
-            V_[x] = i;
-            key_pressed = true;
-            break;
-        }
-    }
-
-    if (!key_pressed)
-        pc_ -= 2; // Repeat this instruction until a key is pressed
+    waitingForKey_ = true;
+    waitKeyReg_ = x;
+    waitKeyValue_ = -1;
 }
 
 // Math based

@@ -42,6 +42,7 @@ public:
 
     void initialize();
     void emulateCycle();
+    void updateTimers();
 
     // Getters
     bool drawFlag() const { return drawF_; }
@@ -71,6 +72,11 @@ private:
     uint16_t sp_;
 
     uint8_t key_[KEYPAD_KEYS];
+
+    // FX0A wait-for-key state
+    bool waitingForKey_;
+    uint8_t waitKeyReg_;  // which Vx register to store the key in
+    int8_t waitKeyValue_; // which key was pressed (-1 = none yet)
 
     // Helper attributes
     bool drawF_;
