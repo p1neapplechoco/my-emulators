@@ -145,7 +145,7 @@ void CHIP8::updateTimers()
         sound_timer_--;
 }
 
-// DEBUG METHODS
+// DEBUG METHODS (Windows only)
 
 void CHIP8::debugDisplay()
 {

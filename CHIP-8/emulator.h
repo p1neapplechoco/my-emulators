@@ -30,7 +30,7 @@ struct EmulatorConfig
     ImVec4 fgColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // white
     ImVec4 bgColor = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // black
 
-    // Controls (scancode for each CHIP-8 key 0-F)
+    // Default controls (scancode for each CHIP-8 key 0-F)
     SDL_Scancode keymap[16] = {
         SDL_SCANCODE_X, // 0
         SDL_SCANCODE_1, // 1
