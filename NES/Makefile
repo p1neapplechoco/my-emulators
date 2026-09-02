@@ -1,0 +1,17 @@
+.PHONY: build run clean
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2
+TARGET = nes.exe
+SRC = nes.cpp
+
+build: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
+
+run: $(TARGET)
+	./$(TARGET)
+
+clean:
+	rm -f $(TARGET)

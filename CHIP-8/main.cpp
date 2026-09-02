@@ -1,6 +1,6 @@
 #include <iostream>
 #include "chip8.h"
-#include "emulator.h"
+#include "chip8_gui.h"
 #include <string>
 #include <SDL3/SDL.h>
 

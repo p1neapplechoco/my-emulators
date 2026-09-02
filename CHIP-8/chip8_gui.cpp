@@ -1,4 +1,4 @@
-#include "emulator.h"
+#include "chip8_gui.h"
 #include <iostream>
 #include <algorithm>
 #include <filesystem>
