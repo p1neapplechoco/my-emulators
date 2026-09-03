@@ -104,7 +104,7 @@ private:
     void handleFxxx();
 
     // Behaviour
-    void cpuNULL();
+    void noOperation();
     void fetch();
     void execute();
 

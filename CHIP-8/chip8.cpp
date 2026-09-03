@@ -171,7 +171,7 @@ void CHIP8::debugDisplay()
 
 // BEHAVIOR
 
-void CHIP8::cpuNULL()
+void CHIP8::noOperation()
 {
     // Do nothing
 }
