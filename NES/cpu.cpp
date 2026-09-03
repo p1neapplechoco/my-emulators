@@ -36,13 +36,17 @@ void NES_cpu::initialize()
     setFlag(U, 1);
     setFlag(V, 0);
     setFlag(N, 0);
+
+    std::cout << "CPU initialized." << std::endl;
+    printState();
+    std::cout << "===============================" << std::endl;
 }
 
 void NES_cpu::emulateCycle()
 {
+    printState();
     uint8_t opcode = bus_->readCPU(pc_++);
     std::cout << "opcode: " << std::hex << (int)opcode << std::dec << std::endl;
-    printState();
 
     Instruction instruction = instructionSet[opcode];
 
@@ -711,44 +715,68 @@ void NES_cpu::compareY(uint8_t memory)
 }
 
 // Branch based
-void NES_cpu::branchIfCarryClear(uint8_t memory)
+void NES_cpu::branchIfCarryClear(uint16_t address)
 {
-    pc_ += (getFlag(C) == 0) ? memory : 0;
+    if (getFlag(C) == 0)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfCarrySet(uint8_t memory)
+void NES_cpu::branchIfCarrySet(uint16_t address)
 {
-    pc_ += (getFlag(C) == 1) ? memory : 0;
+    if (getFlag(C) == 1)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfEqual(uint8_t memory)
+void NES_cpu::branchIfEqual(uint16_t address)
 {
-    pc_ += (getFlag(Z) == 1) ? memory : 0;
+    if (getFlag(Z) == 1)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfNotEqual(uint8_t memory)
+void NES_cpu::branchIfNotEqual(uint16_t address)
 {
-    pc_ += (getFlag(Z) == 0) ? memory : 0;
+    if (getFlag(Z) == 0)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfPlus(uint8_t memory)
+void NES_cpu::branchIfPlus(uint16_t address)
 {
-    pc_ += (getFlag(N) == 0) ? memory : 0;
+    if (getFlag(N) == 0)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfMinus(uint8_t memory)
+void NES_cpu::branchIfMinus(uint16_t address)
 {
-    pc_ += (getFlag(N) == 1) ? memory : 0;
+    if (getFlag(N) == 1)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfOverflowClear(uint8_t memory)
+void NES_cpu::branchIfOverflowClear(uint16_t address)
 {
-    pc_ += (getFlag(V) == 0) ? memory : 0;
+    if (getFlag(V) == 0)
+    {
+        pc_ = address;
+    }
 }
 
-void NES_cpu::branchIfOverflowSet(uint8_t memory)
+void NES_cpu::branchIfOverflowSet(uint16_t address)
 {
-    pc_ += (getFlag(V) == 1) ? memory : 0;
+    if (getFlag(V) == 1)
+    {
+        pc_ = address;
+    }
 }
 
 // Jump based
@@ -863,7 +891,7 @@ void NES_cpu::printState()
 {
     std::cout << "PC: " << std::hex << pc_ << ", SP: " << std::hex << (int)sp_ << ", A: " << std::hex << (int)A_
               << ", X: " << std::hex << (int)X_ << ", Y: " << std::hex << (int)Y_
-              << ", P: " << std::bitset<8>(p_) << std::endl;
+              << ", NV1BDIZC: " << std::bitset<8>(p_) << std::endl;
 }
 
 // Error handling

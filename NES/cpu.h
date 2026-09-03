@@ -109,14 +109,14 @@ public:
     void compareY(uint8_t); // CPY
 
     // Branch based
-    void branchIfCarryClear(uint8_t);    // BCC
-    void branchIfCarrySet(uint8_t);      // BCS
-    void branchIfEqual(uint8_t);         // BEQ
-    void branchIfNotEqual(uint8_t);      // BNE
-    void branchIfPlus(uint8_t);          // BPL
-    void branchIfMinus(uint8_t);         // BMI
-    void branchIfOverflowClear(uint8_t); // BVC
-    void branchIfOverflowSet(uint8_t);   // BVS
+    void branchIfCarryClear(uint16_t);    // BCC
+    void branchIfCarrySet(uint16_t);      // BCS
+    void branchIfEqual(uint16_t);         // BEQ
+    void branchIfNotEqual(uint16_t);      // BNE
+    void branchIfPlus(uint16_t);          // BPL
+    void branchIfMinus(uint16_t);         // BMI
+    void branchIfOverflowClear(uint16_t); // BVC
+    void branchIfOverflowSet(uint16_t);   // BVS
 
     // Jump based
     void jumpTo(uint8_t);           // JMP
