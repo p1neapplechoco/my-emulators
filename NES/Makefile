@@ -3,7 +3,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 TARGET = nes.exe
-SRC = nes.cpp
+SRC = main.cpp cartridge.cpp bus.cpp cpu.cpp
 
 build: $(TARGET)
 

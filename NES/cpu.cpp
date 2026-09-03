@@ -1,6 +1,10 @@
 #include "cpu.h"
 #include <iostream>
 
+// MISCs
+void NES_cpu::setBus(NES_bus bus) { bus_ = &bus; }
+
+// Flag based operations
 bool NES_cpu::getFlag(Flags F) { return (p_ & F) != 0; }
 
 void NES_cpu::setFlag(Flags F, bool condition)
@@ -14,8 +18,8 @@ void NES_cpu::initialize()
     X_ = 0;
     Y_ = 0;
 
-    uint8_t low = bus_->read(0xFFFC);
-    uint8_t high = bus_->read(0xFFFD);
+    uint8_t low = bus_->readCPU(0xFFFC);
+    uint8_t high = bus_->readCPU(0xFFFD);
     pc_ = (high << 8) | low;
 
     sp_ = 0xFD;
@@ -34,7 +38,33 @@ void NES_cpu::initialize()
 
 void NES_cpu::emulateCycle()
 {
-    uint8_t opcode_ = bus_->read(pc_++);
+    uint8_t opcode = bus_->readCPU(pc_++);
+    Instruction instruction = instructionSet[opcode];
+
+    uint16_t address = (this->*instruction.addressingMode)();
+
+    if (std::holds_alternative<noArgInstr>(instruction.operation))
+    {
+        auto operation = std::get<noArgInstr>(instruction.operation);
+        (this->*operation)();
+    }
+    else if (std::holds_alternative<byteInstr>(instruction.operation))
+    {
+        auto operation = std::get<byteInstr>(instruction.operation);
+        (this->*operation)(bus_->readCPU(address));
+    }
+    else
+    {
+        auto operation = std::get<addrInstr>(instruction.operation);
+        (this->*operation)(address);
+    }
+}
+
+void NES_cpu::reset()
+{
+    pc_ = (bus_->readCPU(0xFFFD) << 8) | bus_->readCPU(0xFFFC);
+    sp_ -= 3;
+    setFlag(I, 1);
 }
 
 // INSTRUCTION SET
@@ -318,48 +348,48 @@ NES_cpu::Instruction NES_cpu::instructionSet[256] = {
 //// Indexed based
 uint16_t NES_cpu::addrZeroPageX()
 {
-    uint8_t baseAddress = bus_->read(pc_++);
+    uint8_t baseAddress = bus_->readCPU(pc_++);
     uint16_t effectiveAddress = (baseAddress + X_) & 0xFF;
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrZeroPageY()
 {
-    uint8_t baseAddress = bus_->read(pc_++);
+    uint8_t baseAddress = bus_->readCPU(pc_++);
     uint16_t effectiveAddress = (baseAddress + Y_) & 0xFF;
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrAbsoluteX()
 {
-    uint8_t lowByte = bus_->read(pc_++);
-    uint8_t highByte = bus_->read(pc_++);
-    uint16_t effectiveAddress = (highByte << 8) | lowByte + X_;
+    uint8_t lowByte = bus_->readCPU(pc_++);
+    uint8_t highByte = bus_->readCPU(pc_++);
+    uint16_t effectiveAddress = ((highByte << 8) | lowByte) + X_;
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrAbsoluteY()
 {
-    uint8_t lowByte = bus_->read(pc_++);
-    uint8_t highByte = bus_->read(pc_++);
-    uint16_t effectiveAddress = (highByte << 8) | lowByte + Y_;
+    uint8_t lowByte = bus_->readCPU(pc_++);
+    uint8_t highByte = bus_->readCPU(pc_++);
+    uint16_t effectiveAddress = ((highByte << 8) | lowByte) + Y_;
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrIndirectX()
 {
-    uint8_t baseAddress = bus_->read(pc_++);
-    uint8_t effectiveAddressLow = bus_->read((baseAddress + X_) & 0xFF);
-    uint8_t effectiveAddressHigh = bus_->read((baseAddress + X_ + 1) & 0xFF);
+    uint8_t baseAddress = bus_->readCPU(pc_++);
+    uint8_t effectiveAddressLow = bus_->readCPU((baseAddress + X_) & 0xFF);
+    uint8_t effectiveAddressHigh = bus_->readCPU((baseAddress + X_ + 1) & 0xFF);
     uint16_t effectiveAddress = (effectiveAddressHigh << 8) | effectiveAddressLow;
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrIndirectY()
 {
-    uint8_t baseAddress = bus_->read(pc_++);
-    uint8_t effectiveAddressLow = bus_->read((baseAddress + Y_) & 0xFF);
-    uint8_t effectiveAddressHigh = bus_->read((baseAddress + Y_ + 1) & 0xFF);
+    uint8_t baseAddress = bus_->readCPU(pc_++);
+    uint8_t effectiveAddressLow = bus_->readCPU((baseAddress + Y_) & 0xFF);
+    uint8_t effectiveAddressHigh = bus_->readCPU((baseAddress + Y_ + 1) & 0xFF);
     uint16_t effectiveAddress = (effectiveAddressHigh << 8) | effectiveAddressLow;
     return effectiveAddress;
 }
@@ -382,28 +412,28 @@ uint16_t NES_cpu::addrImmediate()
 
 uint16_t NES_cpu::addrZeroPage()
 {
-    return bus_->read(pc_++);
+    return bus_->readCPU(pc_++);
 }
 
 uint16_t NES_cpu::addrAbsolute()
 {
-    uint8_t lowByte = bus_->read(pc_++);
-    uint8_t highByte = bus_->read(pc_++);
+    uint8_t lowByte = bus_->readCPU(pc_++);
+    uint8_t highByte = bus_->readCPU(pc_++);
     return (highByte << 8) | lowByte;
 }
 
 uint16_t NES_cpu::addrRelative()
 {
-    int8_t offset = (int8_t)bus_->read(pc_++);
+    int8_t offset = (int8_t)bus_->readCPU(pc_++);
     return pc_ + offset;
 }
 
 uint16_t NES_cpu::addrIndirect()
 {
-    uint8_t lowByte = bus_->read(pc_++);
-    uint8_t highByte = bus_->read(pc_++);
+    uint8_t lowByte = bus_->readCPU(pc_++);
+    uint8_t highByte = bus_->readCPU(pc_++);
     uint16_t address = (highByte << 8) | lowByte;
-    return bus_->read(address);
+    return bus_->readCPU(address);
 }
 
 // Access based
@@ -417,7 +447,7 @@ void NES_cpu::loadA(uint8_t memory)
 
 void NES_cpu::storeA(uint16_t address)
 {
-    bus_->write(address, A_);
+    bus_->writeCPU(address, A_);
 }
 
 void NES_cpu::loadX(uint8_t memory)
@@ -430,7 +460,7 @@ void NES_cpu::loadX(uint8_t memory)
 
 void NES_cpu::storeX(uint16_t address)
 {
-    bus_->write(address, X_);
+    bus_->writeCPU(address, X_);
 }
 
 void NES_cpu::loadY(uint8_t memory)
@@ -443,7 +473,7 @@ void NES_cpu::loadY(uint8_t memory)
 
 void NES_cpu::storeY(uint16_t address)
 {
-    bus_->write(address, Y_);
+    bus_->writeCPU(address, Y_);
 }
 
 // Transfer based
@@ -497,7 +527,7 @@ void NES_cpu::subtractWithCarry(uint8_t memory)
 {
     uint16_t result_ = A_ + ~memory + getFlag(C);
 
-    setFlag(C, ~(result_ < 0x00)); // underflows
+    setFlag(C, !(result_ < 0x00)); // underflows
     setFlag(Z, (result_ & 0xFF) == 0);
     setFlag(V, (result_ ^ A_) & (result_ ^ ~memory) & 0b10000000);
     setFlag(N, result_ & 0b10000000);
@@ -507,24 +537,24 @@ void NES_cpu::subtractWithCarry(uint8_t memory)
 
 void NES_cpu::incrementMemory(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
     memory++;
 
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 void NES_cpu::decrementMemory(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
     memory--;
 
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 void NES_cpu::incrementX()
@@ -562,7 +592,7 @@ void NES_cpu::decrementY()
 // Shift based
 void NES_cpu::shiftLeft(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
 
     setFlag(C, memory & 0b10000000); // 7th bit
     memory <<= 1;
@@ -570,12 +600,12 @@ void NES_cpu::shiftLeft(uint16_t address)
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 void NES_cpu::shiftRight(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
 
     setFlag(C, memory & 0b00000001); // 0th bit
     memory >>= 1;
@@ -583,12 +613,12 @@ void NES_cpu::shiftRight(uint16_t address)
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 void NES_cpu::rotateLeft(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
 
     bool oldC = getFlag(C);
     setFlag(C, memory & 0b10000000); // 7th bit
@@ -597,12 +627,12 @@ void NES_cpu::rotateLeft(uint16_t address)
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 void NES_cpu::rotateRight(uint16_t address)
 {
-    uint8_t memory = bus_->read(address);
+    uint8_t memory = bus_->readCPU(address);
 
     bool oldC = getFlag(C);
     setFlag(C, memory & 0b00000001); // 0th bit
@@ -611,7 +641,7 @@ void NES_cpu::rotateRight(uint16_t address)
     setFlag(Z, memory == 0);
     setFlag(N, memory & 0b10000000);
 
-    bus_->write(address, memory);
+    bus_->writeCPU(address, memory);
 }
 
 // Bitwise based
@@ -724,8 +754,8 @@ void NES_cpu::jumpTo(uint8_t memory)
 
 void NES_cpu::jumpToSubroutine(uint8_t memory)
 {
-    bus_->write(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
-    bus_->write(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
+    bus_->writeCPU(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
+    bus_->writeCPU(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
     sp_ -= 2;
 
     pc_ = memory;
@@ -733,21 +763,21 @@ void NES_cpu::jumpToSubroutine(uint8_t memory)
 
 void NES_cpu::returnFromSubroutine()
 {
-    uint8_t lowByte = bus_->read(0x0100 + sp_ + 1);
-    uint8_t highByte = bus_->read(0x0100 + sp_ + 2);
+    uint8_t lowByte = bus_->readCPU(0x0100 + sp_ + 1);
+    uint8_t highByte = bus_->readCPU(0x0100 + sp_ + 2);
     sp_ += 2;
 
-    pc_ = (highByte << 8) | lowByte + 1;
+    pc_ = ((highByte << 8) | lowByte) + 1;
 }
 
 void NES_cpu::interruptSoftware()
 {
-    bus_->write(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
-    bus_->write(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
+    bus_->writeCPU(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
+    bus_->writeCPU(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
     sp_ -= 2;
 
     // push status flags to stack
-    bus_->write(0x0100 + sp_, p_);
+    bus_->writeCPU(0x0100 + sp_, p_);
 
     pc_ = 0xFFFE;
 
@@ -757,9 +787,9 @@ void NES_cpu::interruptSoftware()
 
 void NES_cpu::returnFromInterrupt()
 {
-    p_ = bus_->read(0x0100 + sp_ + 1); // pop status flags from stack
-    uint8_t lowByte = bus_->read(0x0100 + sp_ + 2);
-    uint8_t highByte = bus_->read(0x0100 + sp_ + 3);
+    p_ = bus_->readCPU(0x0100 + sp_ + 1); // pop status flags from stack
+    uint8_t lowByte = bus_->readCPU(0x0100 + sp_ + 2);
+    uint8_t highByte = bus_->readCPU(0x0100 + sp_ + 3);
     sp_ += 3;
 
     pc_ = (highByte << 8) | lowByte;
@@ -768,14 +798,14 @@ void NES_cpu::returnFromInterrupt()
 // Stack based
 void NES_cpu::pushA()
 {
-    bus_->write(0x0100 + sp_, A_);
+    bus_->writeCPU(0x0100 + sp_, A_);
     sp_--;
 }
 
 void NES_cpu::pullA()
 {
     sp_++;
-    A_ = bus_->read(0x0100 + sp_);
+    A_ = bus_->readCPU(0x0100 + sp_);
 
     setFlag(Z, A_ == 0);
     setFlag(N, A_ & 0b10000000);
@@ -785,14 +815,14 @@ void NES_cpu::pushP()
 {
     setFlag(B, 1);
 
-    bus_->write(0x0100 + sp_, p_);
+    bus_->writeCPU(0x0100 + sp_, p_);
     sp_--;
 }
 
 void NES_cpu::pullP()
 {
     sp_++;
-    p_ = bus_->read(0x0100 + sp_);
+    p_ = bus_->readCPU(0x0100 + sp_);
 }
 
 void NES_cpu::transferXtoSP()

@@ -4,9 +4,13 @@
 #include <cstdint>
 #include <variant>
 
+// CPU CONSTANTS
 class NES_cpu
 {
 public:
+    // MISCs
+    void setBus(NES_bus);
+
     // Flag based operations
     enum Flags : uint8_t
     {
@@ -26,13 +30,14 @@ public:
 
     void initialize();
     void emulateCycle();
+    void reset();
 
     // Instruction set
     using noArgInstr = void (NES_cpu::*)();
     using byteInstr = void (NES_cpu::*)(uint8_t);
-    using addressInstr = void (NES_cpu::*)(uint16_t);
+    using addrInstr = void (NES_cpu::*)(uint16_t);
 
-    using instr = std::variant<noArgInstr, byteInstr, addressInstr>;
+    using instr = std::variant<noArgInstr, byteInstr, addrInstr>;
     using addrMode = uint16_t (NES_cpu::*)();
 
     struct Instruction
