@@ -1,14 +1,20 @@
 #pragma once
 
-#include "cpu.h"
 #include "ppu.h"
 #include "cartridge.h"
 #include <cstdint>
+
+class NES_cpu; // forward declaration: cpu.h uses NES_bus
 
 class NES_bus
 {
 public:
     NES_bus() = default;
+
+    // MISCs
+    void setCPU(NES_cpu &);
+    void setPPU(NES_ppu &);
+    void setCartridge(NES_cartridge &);
 
     uint8_t readCPU(uint16_t);
     void writeCPU(uint16_t, uint8_t);

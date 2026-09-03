@@ -1,8 +1,10 @@
 #include "cpu.h"
+#include "bus.h"
 #include <iostream>
+#include <bitset>
 
 // MISCs
-void NES_cpu::setBus(NES_bus bus) { bus_ = &bus; }
+void NES_cpu::setBus(NES_bus &bus) { bus_ = &bus; }
 
 // Flag based operations
 bool NES_cpu::getFlag(Flags F) { return (p_ & F) != 0; }
@@ -39,6 +41,9 @@ void NES_cpu::initialize()
 void NES_cpu::emulateCycle()
 {
     uint8_t opcode = bus_->readCPU(pc_++);
+    std::cout << "opcode: " << std::hex << (int)opcode << std::dec << std::endl;
+    printState();
+
     Instruction instruction = instructionSet[opcode];
 
     uint16_t address = (this->*instruction.addressingMode)();
@@ -853,11 +858,22 @@ void NES_cpu::noOperation()
     // Do nothing
 }
 
+// Debugging methods
+void NES_cpu::printState()
+{
+    std::cout << "PC: " << std::hex << pc_ << ", SP: " << std::hex << (int)sp_ << ", A: " << std::hex << (int)A_
+              << ", X: " << std::hex << (int)X_ << ", Y: " << std::hex << (int)Y_
+              << ", P: " << std::bitset<8>(p_) << std::endl;
+}
+
 // Error handling
-void NES_cpu::handleInvalidOpcode() { throw std::runtime_error("Invalid opcode encountered."); }
+void NES_cpu::handleInvalidOpcode()
+{
+    std::cerr << "Invalid opcode encountered at PC: " << std::hex << pc_ - 1 << std::endl;
+}
 
 uint16_t NES_cpu::handleInvalidAddressingMode()
 {
-    throw std::runtime_error("Invalid addressing mode encountered.");
-    return -1;
+    std::cerr << "Invalid addressing mode encountered at PC: " << std::hex << pc_ - 1 << std::endl;
+    return 0;
 }

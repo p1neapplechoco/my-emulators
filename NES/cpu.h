@@ -1,15 +1,16 @@
 #pragma once
 
-#include "bus.h"
 #include <cstdint>
 #include <variant>
+
+class NES_bus; // forward declaration: bus.h includes cpu.h
 
 // CPU CONSTANTS
 class NES_cpu
 {
 public:
     // MISCs
-    void setBus(NES_bus);
+    void setBus(NES_bus &);
 
     // Flag based operations
     enum Flags : uint8_t
@@ -143,6 +144,9 @@ public:
 
     // NOP
     void noOperation(); // NOP
+
+    // Debugging methods
+    void printState();
 
     // Error handling
     void handleInvalidOpcode();
