@@ -11,6 +11,35 @@ void NES_ppu::initialize()
     addr_ = 0;
     data_ = 0;
     oamDMA_ = 0;
+
+    cycle_ = 0;
+    scanline_ = 0;
+}
+
+void NES_ppu::tick()
+{
+    cycle_++;
+
+    if (cycle_ == 341)
+    {
+        cycle_ = 0;
+        scanline_++;
+    }
+
+    if (scanline_ == 241 && cycle_ == 1)
+    {
+        statusSetFlag(VBLANK, true);
+    }
+
+    if (scanline_ == 261 && cycle_ == 1)
+    {
+        statusSetFlag(VBLANK, false);
+    }
+
+    if (scanline_ == 262)
+    {
+        scanline_ = 0;
+    }
 }
 
 uint8_t NES_ppu::readCPU(uint16_t addr)
@@ -86,6 +115,11 @@ uint8_t NES_ppu::readPPU(uint16_t addr)
 void NES_ppu::writePPU(uint16_t addr, uint8_t data)
 {
     // Handle writes to PPU memory here
+}
+
+bool NES_ppu::requestNMI()
+{
+    return scanline_ == 241 && cycle_ == 1 && ctrlGetFlag(NMI_ENABLE);
 }
 
 // REGISTER METHODS

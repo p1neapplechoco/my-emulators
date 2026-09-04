@@ -21,6 +21,7 @@ int main()
     bus.setCartridge(cartridge);
 
     NES_ppu ppu;
+    ppu.initialize();
     bus.setPPU(ppu);
 
     NES_cpu cpu;
@@ -33,8 +34,20 @@ int main()
     {
         while (true)
         {
-            cpu.emulateCycle();
-            sleep(1);
+            int cycle = cpu.emulateCycle();
+            // sleep(1);
+
+            // wait for 1 ms
+            usleep(0);
+
+            for (int i = 0; i < cycle * 3; i++)
+            {
+                ppu.tick();
+                if (ppu.requestNMI())
+                {
+                    cpu.nmi();
+                }
+            }
         }
     }
     catch (const std::exception &e)

@@ -14,12 +14,15 @@ class NES_ppu
 public:
     NES_ppu() = default;
     void initialize();
+    void tick();
 
     uint8_t readCPU(uint16_t);
     void writeCPU(uint16_t, uint8_t);
 
     uint8_t readPPU(uint16_t);
     void writePPU(uint16_t, uint8_t);
+
+    bool requestNMI();
 
     // REGISTER METHODS
     // PPUCTRL
@@ -89,6 +92,9 @@ private:
     uint8_t addr_;
     uint8_t data_;
     uint8_t oamDMA_;
+
+    uint64_t cycle_;
+    uint64_t scanline_;
 
     // Pattern tables
     /*

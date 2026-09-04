@@ -41,7 +41,7 @@ void NES_cpu::initialize()
     std::cout << "===============================" << std::endl;
 }
 
-void NES_cpu::emulateCycle()
+uint8_t NES_cpu::emulateCycle()
 {
     printState();
     uint8_t opcode = bus_->readCPU(pc_++);
@@ -68,6 +68,8 @@ void NES_cpu::emulateCycle()
     }
 
     cycle_ += instruction.cycles;
+
+    return instruction.cycles;
 }
 
 void NES_cpu::reset()
@@ -77,6 +79,30 @@ void NES_cpu::reset()
     setFlag(I, 1);
 
     cycle_ = 0;
+}
+
+void NES_cpu::nmi()
+{
+    /*
+    When the CPU checks for an NMI and finds that the flip-flop is set, the CPU performs the following actions in order:
+        1. Push the return address high byte onto the stack.
+        2. Push the return address low byte onto the stack.
+        3. Push the processor status register onto the stack. Note that the B flag will be set to 0.
+        4. Read the NMI handler address from $FFFA-$FFFB.
+        5. Clear the NMI handler flip-flop.
+        6. Set the program counter to the address read, jumping to the NMI handler.
+    */
+    bus_->writeCPU(0x0100 + sp_--, (pc_ >> 8) & 0xFF);          // push high byte of PC
+    bus_->writeCPU(0x0100 + sp_--, pc_ & 0xFF);                 // push low byte of PC
+    setFlag(B, 0);                                              // set B flag to 0
+    bus_->writeCPU(0x0100 + sp_--, p_);                         // push processor status register
+    setFlag(I, 1);                                              // disable interrupt
+    pc_ = (bus_->readCPU(0xFFFB) << 8) | bus_->readCPU(0xFFFA); // read NMI handler address
+    cycle_ += 7;                                                // NMI takes 7 cycles
+
+    std::cout << "NMI triggered. Jumping to address: " << std::hex << pc_ << std::dec << std::endl;
+    printState();
+    throw std::runtime_error("NMI triggered. Halting CPU for debugging.");
 }
 
 // INSTRUCTION SET
@@ -807,18 +833,18 @@ void NES_cpu::branchIfOverflowSet(uint16_t address)
 }
 
 // Jump based
-void NES_cpu::jumpTo(uint8_t memory)
+void NES_cpu::jumpTo(uint16_t address)
 {
-    pc_ = memory;
+    pc_ = address;
 }
 
-void NES_cpu::jumpToSubroutine(uint8_t memory)
+void NES_cpu::jumpToSubroutine(uint16_t address)
 {
     bus_->writeCPU(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
     bus_->writeCPU(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
     sp_ -= 2;
 
-    pc_ = memory;
+    pc_ = address;
 }
 
 void NES_cpu::returnFromSubroutine()

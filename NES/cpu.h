@@ -30,8 +30,10 @@ public:
     void setFlag(Flags, bool);
 
     void initialize();
-    void emulateCycle();
+    uint8_t emulateCycle();
     void reset();
+
+    void nmi();
 
     // Instruction set
     using noArgInstr = void (NES_cpu::*)();
@@ -120,11 +122,11 @@ public:
     void branchIfOverflowSet(uint16_t);   // BVS
 
     // Jump based
-    void jumpTo(uint8_t);           // JMP
-    void jumpToSubroutine(uint8_t); // JSR
-    void returnFromSubroutine();    // RTS
-    void interruptSoftware();       // BRK
-    void returnFromInterrupt();     // RTI
+    void jumpTo(uint16_t);           // JMP
+    void jumpToSubroutine(uint16_t); // JSR
+    void returnFromSubroutine();     // RTS
+    void interruptSoftware();        // BRK
+    void returnFromInterrupt();      // RTI
 
     // Stack based
     void pushA();         // PHA
