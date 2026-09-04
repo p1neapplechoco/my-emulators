@@ -9,10 +9,7 @@ void NES_cpu::setBus(NES_bus &bus) { bus_ = &bus; }
 // Flag based operations
 bool NES_cpu::getFlag(Flags F) { return (p_ & F) != 0; }
 
-void NES_cpu::setFlag(Flags F, bool condition)
-{
-    p_ = (p_ & ~F) | (-(uint8_t)condition & F);
-}
+void NES_cpu::setFlag(Flags F, bool condition) { p_ = (p_ & ~F) | (-(uint8_t)condition & F); }
 
 void NES_cpu::initialize()
 {
@@ -36,6 +33,8 @@ void NES_cpu::initialize()
     setFlag(U, 1);
     setFlag(V, 0);
     setFlag(N, 0);
+
+    cycle_ = 0;
 
     std::cout << "CPU initialized." << std::endl;
     printState();
@@ -67,6 +66,8 @@ void NES_cpu::emulateCycle()
         auto operation = std::get<addrInstr>(instruction.operation);
         (this->*operation)(address);
     }
+
+    cycle_ += instruction.cycles;
 }
 
 void NES_cpu::reset()
@@ -74,283 +75,285 @@ void NES_cpu::reset()
     pc_ = (bus_->readCPU(0xFFFD) << 8) | bus_->readCPU(0xFFFC);
     sp_ -= 3;
     setFlag(I, 1);
+
+    cycle_ = 0;
 }
 
 // INSTRUCTION SET
 
 // ugly code alert !!!
 NES_cpu::Instruction NES_cpu::instructionSet[256] = {
-    /*$00*/ {&NES_cpu::interruptSoftware, &NES_cpu::addrImplicit},
-    /*$01*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrIndirectX},
-    /*$02*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$03*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$04*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$05*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrZeroPage},
-    /*$06*/ {&NES_cpu::shiftLeft, &NES_cpu::addrZeroPage},
-    /*$07*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$08*/ {&NES_cpu::pushP, &NES_cpu::addrImplicit},
-    /*$09*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrImmediate},
-    /*$0A*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAccumulator},
-    /*$0B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$0C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$0D*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsolute},
-    /*$0E*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAbsolute},
-    /*$0F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$00*/ {&NES_cpu::interruptSoftware, &NES_cpu::addrImplicit, 7},
+    /*$01*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrIndirectX, 6},
+    /*$02*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$03*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$04*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$05*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrZeroPage, 3},
+    /*$06*/ {&NES_cpu::shiftLeft, &NES_cpu::addrZeroPage, 5},
+    /*$07*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$08*/ {&NES_cpu::pushP, &NES_cpu::addrImplicit, 3},
+    /*$09*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrImmediate, 2},
+    /*$0A*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAccumulator, 2},
+    /*$0B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$0C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$0D*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsolute, 4},
+    /*$0E*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAbsolute, 6},
+    /*$0F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$10*/ {&NES_cpu::branchIfPlus, &NES_cpu::addrRelative},
-    /*$11*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrIndirectY},
-    /*$12*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$13*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$14*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$15*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrZeroPageX},
-    /*$16*/ {&NES_cpu::shiftLeft, &NES_cpu::addrZeroPageX},
-    /*$17*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$18*/ {&NES_cpu::clearC, &NES_cpu::addrImplicit},
-    /*$19*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsoluteY},
-    /*$1A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$1B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$1C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$1D*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsoluteX},
-    /*$1E*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAbsoluteX},
-    /*$1F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$10*/ {&NES_cpu::branchIfPlus, &NES_cpu::addrRelative, 2},
+    /*$11*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrIndirectY, 5},
+    /*$12*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$13*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$14*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$15*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrZeroPageX, 4},
+    /*$16*/ {&NES_cpu::shiftLeft, &NES_cpu::addrZeroPageX, 6},
+    /*$17*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$18*/ {&NES_cpu::clearC, &NES_cpu::addrImplicit, 2},
+    /*$19*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsoluteY, 4},
+    /*$1A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$1B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$1C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$1D*/ {&NES_cpu::bitwiseOr, &NES_cpu::addrAbsoluteX, 4},
+    /*$1E*/ {&NES_cpu::shiftLeft, &NES_cpu::addrAbsoluteX, 6},
+    /*$1F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$20*/ {&NES_cpu::jumpToSubroutine, &NES_cpu::addrAbsolute},
-    /*$21*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrIndirectX},
-    /*$22*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$23*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$24*/ {&NES_cpu::bitTest, &NES_cpu::addrZeroPage},
-    /*$25*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrZeroPage},
-    /*$26*/ {&NES_cpu::rotateLeft, &NES_cpu::addrZeroPage},
-    /*$27*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$28*/ {&NES_cpu::pullP, &NES_cpu::addrImplicit},
-    /*$29*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrImmediate},
-    /*$2A*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAccumulator},
-    /*$2B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$2C*/ {&NES_cpu::bitTest, &NES_cpu::addrAbsolute},
-    /*$2D*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsolute},
-    /*$2E*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAbsolute},
-    /*$2F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$20*/ {&NES_cpu::jumpToSubroutine, &NES_cpu::addrAbsolute, 6},
+    /*$21*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrIndirectX, 6},
+    /*$22*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$23*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$24*/ {&NES_cpu::bitTest, &NES_cpu::addrZeroPage, 3},
+    /*$25*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrZeroPage, 3},
+    /*$26*/ {&NES_cpu::rotateLeft, &NES_cpu::addrZeroPage, 5},
+    /*$27*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$28*/ {&NES_cpu::pullP, &NES_cpu::addrImplicit, 4},
+    /*$29*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrImmediate, 2},
+    /*$2A*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAccumulator, 2},
+    /*$2B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$2C*/ {&NES_cpu::bitTest, &NES_cpu::addrAbsolute, 4},
+    /*$2D*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsolute, 4},
+    /*$2E*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAbsolute, 6},
+    /*$2F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$30*/ {&NES_cpu::branchIfMinus, &NES_cpu::addrRelative},
-    /*$31*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrIndirectY},
-    /*$32*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$33*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$34*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$35*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrZeroPageX},
-    /*$36*/ {&NES_cpu::rotateLeft, &NES_cpu::addrZeroPageX},
-    /*$37*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$38*/ {&NES_cpu::setC, &NES_cpu::addrImplicit},
-    /*$39*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsoluteY},
-    /*$3A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$3B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$3C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$3D*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsoluteX},
-    /*$3E*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAbsoluteX},
-    /*$3F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$30*/ {&NES_cpu::branchIfMinus, &NES_cpu::addrRelative, 2},
+    /*$31*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrIndirectY, 5},
+    /*$32*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$33*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$34*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$35*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrZeroPageX, 4},
+    /*$36*/ {&NES_cpu::rotateLeft, &NES_cpu::addrZeroPageX, 6},
+    /*$37*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$38*/ {&NES_cpu::setC, &NES_cpu::addrImplicit, 2},
+    /*$39*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsoluteY, 4},
+    /*$3A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$3B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$3C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$3D*/ {&NES_cpu::bitwiseAnd, &NES_cpu::addrAbsoluteX, 4},
+    /*$3E*/ {&NES_cpu::rotateLeft, &NES_cpu::addrAbsoluteX, 4},
+    /*$3F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$40*/ {&NES_cpu::returnFromInterrupt, &NES_cpu::addrImplicit},
-    /*$41*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrIndirectX},
-    /*$42*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$43*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$44*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$45*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrZeroPage},
-    /*$46*/ {&NES_cpu::shiftRight, &NES_cpu::addrZeroPage},
-    /*$47*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$48*/ {&NES_cpu::pushA, &NES_cpu::addrImplicit},
-    /*$49*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrImmediate},
-    /*$4A*/ {&NES_cpu::shiftRight, &NES_cpu::addrAccumulator},
-    /*$4B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$4C*/ {&NES_cpu::jumpTo, &NES_cpu::addrAbsolute},
-    /*$4D*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsolute},
-    /*$4E*/ {&NES_cpu::shiftRight, &NES_cpu::addrAbsolute},
-    /*$4F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$40*/ {&NES_cpu::returnFromInterrupt, &NES_cpu::addrImplicit, 6},
+    /*$41*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrIndirectX, 6},
+    /*$42*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$43*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$44*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$45*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrZeroPage, 3},
+    /*$46*/ {&NES_cpu::shiftRight, &NES_cpu::addrZeroPage, 5},
+    /*$47*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$48*/ {&NES_cpu::pushA, &NES_cpu::addrImplicit, 3},
+    /*$49*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrImmediate, 2},
+    /*$4A*/ {&NES_cpu::shiftRight, &NES_cpu::addrAccumulator, 2},
+    /*$4B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$4C*/ {&NES_cpu::jumpTo, &NES_cpu::addrAbsolute, 3},
+    /*$4D*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsolute, 4},
+    /*$4E*/ {&NES_cpu::shiftRight, &NES_cpu::addrAbsolute, 4},
+    /*$4F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$50*/ {&NES_cpu::branchIfOverflowClear, &NES_cpu::addrRelative},
-    /*$51*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrIndirectY},
-    /*$52*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$53*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$54*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$55*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrZeroPageX},
-    /*$56*/ {&NES_cpu::shiftRight, &NES_cpu::addrZeroPageX},
-    /*$57*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$58*/ {&NES_cpu::clearI, &NES_cpu::addrImplicit},
-    /*$59*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsoluteY},
-    /*$5A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$5B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$5C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$5D*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsoluteX},
-    /*$5E*/ {&NES_cpu::shiftRight, &NES_cpu::addrAbsoluteX},
-    /*$5F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$50*/ {&NES_cpu::branchIfOverflowClear, &NES_cpu::addrRelative, 2},
+    /*$51*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrIndirectY, 5},
+    /*$52*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$53*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$54*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$55*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrZeroPageX, 4},
+    /*$56*/ {&NES_cpu::shiftRight, &NES_cpu::addrZeroPageX, 6},
+    /*$57*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$58*/ {&NES_cpu::clearI, &NES_cpu::addrImplicit, 2},
+    /*$59*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsoluteY, 4},
+    /*$5A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$5B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$5C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$5D*/ {&NES_cpu::bitwiseXor, &NES_cpu::addrAbsoluteX, 4},
+    /*$5E*/ {&NES_cpu::shiftRight, &NES_cpu::addrAbsoluteX, 4},
+    /*$5F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$60*/ {&NES_cpu::returnFromSubroutine, &NES_cpu::addrImplicit},
-    /*$61*/ {&NES_cpu::addWithCarry, &NES_cpu::addrIndirectX},
-    /*$62*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$63*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$64*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$65*/ {&NES_cpu::addWithCarry, &NES_cpu::addrZeroPage},
-    /*$66*/ {&NES_cpu::rotateRight, &NES_cpu::addrZeroPage},
-    /*$67*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$68*/ {&NES_cpu::pullA, &NES_cpu::addrImplicit},
-    /*$69*/ {&NES_cpu::addWithCarry, &NES_cpu::addrImmediate},
-    /*$6A*/ {&NES_cpu::rotateRight, &NES_cpu::addrAccumulator},
-    /*$6B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$6C*/ {&NES_cpu::jumpTo, &NES_cpu::addrIndirect},
-    /*$6D*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsolute},
-    /*$6E*/ {&NES_cpu::rotateRight, &NES_cpu::addrAbsolute},
-    /*$6F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$60*/ {&NES_cpu::returnFromSubroutine, &NES_cpu::addrImplicit, 6},
+    /*$61*/ {&NES_cpu::addWithCarry, &NES_cpu::addrIndirectX, 6},
+    /*$62*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$63*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 8},
+    /*$64*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$65*/ {&NES_cpu::addWithCarry, &NES_cpu::addrZeroPage, 3},
+    /*$66*/ {&NES_cpu::rotateRight, &NES_cpu::addrZeroPage, 5},
+    /*$67*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$68*/ {&NES_cpu::pullA, &NES_cpu::addrImplicit, 4},
+    /*$69*/ {&NES_cpu::addWithCarry, &NES_cpu::addrImmediate, 2},
+    /*$6A*/ {&NES_cpu::rotateRight, &NES_cpu::addrAccumulator, 2},
+    /*$6B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$6C*/ {&NES_cpu::jumpTo, &NES_cpu::addrIndirect, 3},
+    /*$6D*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsolute, 4},
+    /*$6E*/ {&NES_cpu::rotateRight, &NES_cpu::addrAbsolute, 4},
+    /*$6F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$70*/ {&NES_cpu::branchIfOverflowSet, &NES_cpu::addrRelative},
-    /*$71*/ {&NES_cpu::addWithCarry, &NES_cpu::addrIndirectY},
-    /*$72*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$73*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$74*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$75*/ {&NES_cpu::addWithCarry, &NES_cpu::addrZeroPageX},
-    /*$76*/ {&NES_cpu::rotateRight, &NES_cpu::addrZeroPageX},
-    /*$77*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$78*/ {&NES_cpu::setI, &NES_cpu::addrImplicit},
-    /*$79*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsoluteY},
-    /*$7A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$7B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$7C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$7D*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsoluteX},
-    /*$7E*/ {&NES_cpu::rotateRight, &NES_cpu::addrAbsoluteX},
-    /*$7F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$70*/ {&NES_cpu::branchIfOverflowSet, &NES_cpu::addrRelative, 2},
+    /*$71*/ {&NES_cpu::addWithCarry, &NES_cpu::addrIndirectY, 5},
+    /*$72*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$73*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$74*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$75*/ {&NES_cpu::addWithCarry, &NES_cpu::addrZeroPageX, 4},
+    /*$76*/ {&NES_cpu::rotateRight, &NES_cpu::addrZeroPageX, 6},
+    /*$77*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$78*/ {&NES_cpu::setI, &NES_cpu::addrImplicit, 2},
+    /*$79*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsoluteY, 4},
+    /*$7A*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$7B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$7C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$7D*/ {&NES_cpu::addWithCarry, &NES_cpu::addrAbsoluteX, 4},
+    /*$7E*/ {&NES_cpu::rotateRight, &NES_cpu::addrAbsoluteX, 4},
+    /*$7F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$80*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$81*/ {&NES_cpu::storeA, &NES_cpu::addrIndirectX},
-    /*$82*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$83*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$84*/ {&NES_cpu::storeY, &NES_cpu::addrZeroPage},
-    /*$85*/ {&NES_cpu::storeA, &NES_cpu::addrZeroPage},
-    /*$86*/ {&NES_cpu::storeX, &NES_cpu::addrZeroPage},
-    /*$87*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$88*/ {&NES_cpu::decrementY, &NES_cpu::addrImplicit},
-    /*$89*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$8A*/ {&NES_cpu::transferXtoA, &NES_cpu::addrImplicit},
-    /*$8B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$8C*/ {&NES_cpu::storeY, &NES_cpu::addrAbsolute},
-    /*$8D*/ {&NES_cpu::storeA, &NES_cpu::addrAbsolute},
-    /*$8E*/ {&NES_cpu::storeX, &NES_cpu::addrAbsolute},
-    /*$8F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$80*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$81*/ {&NES_cpu::storeA, &NES_cpu::addrIndirectX, 6},
+    /*$82*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$83*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$84*/ {&NES_cpu::storeY, &NES_cpu::addrZeroPage, 3},
+    /*$85*/ {&NES_cpu::storeA, &NES_cpu::addrZeroPage, 3},
+    /*$86*/ {&NES_cpu::storeX, &NES_cpu::addrZeroPage, 3},
+    /*$87*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$88*/ {&NES_cpu::decrementY, &NES_cpu::addrImplicit, 2},
+    /*$89*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$8A*/ {&NES_cpu::transferXtoA, &NES_cpu::addrImplicit, 2},
+    /*$8B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$8C*/ {&NES_cpu::storeY, &NES_cpu::addrAbsolute, 4},
+    /*$8D*/ {&NES_cpu::storeA, &NES_cpu::addrAbsolute, 4},
+    /*$8E*/ {&NES_cpu::storeX, &NES_cpu::addrAbsolute, 4},
+    /*$8F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$90*/ {&NES_cpu::branchIfCarryClear, &NES_cpu::addrRelative},
-    /*$91*/ {&NES_cpu::storeA, &NES_cpu::addrIndirectY},
-    /*$92*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$93*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$94*/ {&NES_cpu::storeY, &NES_cpu::addrZeroPageX},
-    /*$95*/ {&NES_cpu::storeA, &NES_cpu::addrZeroPageX},
-    /*$96*/ {&NES_cpu::storeX, &NES_cpu::addrZeroPageY},
-    /*$97*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$98*/ {&NES_cpu::transferYtoA, &NES_cpu::addrImplicit},
-    /*$99*/ {&NES_cpu::storeA, &NES_cpu::addrAbsoluteY},
-    /*$9A*/ {&NES_cpu::transferXtoSP, &NES_cpu::addrImplicit},
-    /*$9B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$9C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$9D*/ {&NES_cpu::storeA, &NES_cpu::addrAbsoluteX},
-    /*$9E*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$9F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$90*/ {&NES_cpu::branchIfCarryClear, &NES_cpu::addrRelative, 2},
+    /*$91*/ {&NES_cpu::storeA, &NES_cpu::addrIndirectY, 5},
+    /*$92*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$93*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$94*/ {&NES_cpu::storeY, &NES_cpu::addrZeroPageX, 4},
+    /*$95*/ {&NES_cpu::storeA, &NES_cpu::addrZeroPageX, 4},
+    /*$96*/ {&NES_cpu::storeX, &NES_cpu::addrZeroPageY, 4},
+    /*$97*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$98*/ {&NES_cpu::transferYtoA, &NES_cpu::addrImplicit, 2},
+    /*$99*/ {&NES_cpu::storeA, &NES_cpu::addrAbsoluteY, 4},
+    /*$9A*/ {&NES_cpu::transferXtoSP, &NES_cpu::addrImplicit, 2},
+    /*$9B*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$9C*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$9D*/ {&NES_cpu::storeA, &NES_cpu::addrAbsoluteX, 4},
+    /*$9E*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$9F*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$A0*/ {&NES_cpu::loadY, &NES_cpu::addrImmediate},
-    /*$A1*/ {&NES_cpu::loadA, &NES_cpu::addrIndirectX},
-    /*$A2*/ {&NES_cpu::loadX, &NES_cpu::addrImmediate},
-    /*$A3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$A4*/ {&NES_cpu::loadY, &NES_cpu::addrZeroPage},
-    /*$A5*/ {&NES_cpu::loadA, &NES_cpu::addrZeroPage},
-    /*$A6*/ {&NES_cpu::loadX, &NES_cpu::addrZeroPage},
-    /*$A7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$A8*/ {&NES_cpu::transferAtoY, &NES_cpu::addrImplicit},
-    /*$A9*/ {&NES_cpu::loadA, &NES_cpu::addrImmediate},
-    /*$AA*/ {&NES_cpu::transferAtoX, &NES_cpu::addrImplicit},
-    /*$AB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$AC*/ {&NES_cpu::loadY, &NES_cpu::addrAbsolute},
-    /*$AD*/ {&NES_cpu::loadA, &NES_cpu::addrAbsolute},
-    /*$AE*/ {&NES_cpu::loadX, &NES_cpu::addrAbsolute},
-    /*$AF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$A0*/ {&NES_cpu::loadY, &NES_cpu::addrImmediate, 2},
+    /*$A1*/ {&NES_cpu::loadA, &NES_cpu::addrIndirectX, 6},
+    /*$A2*/ {&NES_cpu::loadX, &NES_cpu::addrImmediate, 2},
+    /*$A3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$A4*/ {&NES_cpu::loadY, &NES_cpu::addrZeroPage, 3},
+    /*$A5*/ {&NES_cpu::loadA, &NES_cpu::addrZeroPage, 3},
+    /*$A6*/ {&NES_cpu::loadX, &NES_cpu::addrZeroPage, 3},
+    /*$A7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$A8*/ {&NES_cpu::transferAtoY, &NES_cpu::addrImplicit, 2},
+    /*$A9*/ {&NES_cpu::loadA, &NES_cpu::addrImmediate, 2},
+    /*$AA*/ {&NES_cpu::transferAtoX, &NES_cpu::addrImplicit, 2},
+    /*$AB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$AC*/ {&NES_cpu::loadY, &NES_cpu::addrAbsolute, 4},
+    /*$AD*/ {&NES_cpu::loadA, &NES_cpu::addrAbsolute, 4},
+    /*$AE*/ {&NES_cpu::loadX, &NES_cpu::addrAbsolute, 4},
+    /*$AF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$B0*/ {&NES_cpu::branchIfCarrySet, &NES_cpu::addrRelative},
-    /*$B1*/ {&NES_cpu::loadA, &NES_cpu::addrIndirectY},
-    /*$B2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$B3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$B4*/ {&NES_cpu::loadY, &NES_cpu::addrZeroPageX},
-    /*$B5*/ {&NES_cpu::loadA, &NES_cpu::addrZeroPageX},
-    /*$B6*/ {&NES_cpu::loadX, &NES_cpu::addrZeroPageY},
-    /*$B7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$B8*/ {&NES_cpu::clearV, &NES_cpu::addrImplicit},
-    /*$B9*/ {&NES_cpu::loadA, &NES_cpu::addrAbsoluteY},
-    /*$BA*/ {&NES_cpu::transferSPtoX, &NES_cpu::addrImplicit},
-    /*$BB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$BC*/ {&NES_cpu::loadY, &NES_cpu::addrAbsoluteX},
-    /*$BD*/ {&NES_cpu::loadA, &NES_cpu::addrAbsoluteX},
-    /*$BE*/ {&NES_cpu::loadX, &NES_cpu::addrAbsoluteY},
-    /*$BF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$B0*/ {&NES_cpu::branchIfCarrySet, &NES_cpu::addrRelative, 2},
+    /*$B1*/ {&NES_cpu::loadA, &NES_cpu::addrIndirectY, 5},
+    /*$B2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$B3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$B4*/ {&NES_cpu::loadY, &NES_cpu::addrZeroPageX, 4},
+    /*$B5*/ {&NES_cpu::loadA, &NES_cpu::addrZeroPageX, 4},
+    /*$B6*/ {&NES_cpu::loadX, &NES_cpu::addrZeroPageY, 4},
+    /*$B7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$B8*/ {&NES_cpu::clearV, &NES_cpu::addrImplicit, 2},
+    /*$B9*/ {&NES_cpu::loadA, &NES_cpu::addrAbsoluteY, 4},
+    /*$BA*/ {&NES_cpu::transferSPtoX, &NES_cpu::addrImplicit, 2},
+    /*$BB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$BC*/ {&NES_cpu::loadY, &NES_cpu::addrAbsoluteX, 4},
+    /*$BD*/ {&NES_cpu::loadA, &NES_cpu::addrAbsoluteX, 4},
+    /*$BE*/ {&NES_cpu::loadX, &NES_cpu::addrAbsoluteY, 4},
+    /*$BF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$C0*/ {&NES_cpu::compareY, &NES_cpu::addrImmediate},
-    /*$C1*/ {&NES_cpu::compareA, &NES_cpu::addrIndirectX},
-    /*$C2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$C3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$C4*/ {&NES_cpu::compareY, &NES_cpu::addrZeroPage},
-    /*$C5*/ {&NES_cpu::compareA, &NES_cpu::addrZeroPage},
-    /*$C6*/ {&NES_cpu::decrementMemory, &NES_cpu::addrZeroPage},
-    /*$C7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$C8*/ {&NES_cpu::incrementY, &NES_cpu::addrImplicit},
-    /*$C9*/ {&NES_cpu::compareA, &NES_cpu::addrImmediate},
-    /*$CA*/ {&NES_cpu::decrementX, &NES_cpu::addrImplicit},
-    /*$CB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$CC*/ {&NES_cpu::compareY, &NES_cpu::addrAbsolute},
-    /*$CD*/ {&NES_cpu::compareA, &NES_cpu::addrAbsolute},
-    /*$CE*/ {&NES_cpu::decrementMemory, &NES_cpu::addrAbsolute},
-    /*$CF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$C0*/ {&NES_cpu::compareY, &NES_cpu::addrImmediate, 2},
+    /*$C1*/ {&NES_cpu::compareA, &NES_cpu::addrIndirectX, 6},
+    /*$C2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$C3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$C4*/ {&NES_cpu::compareY, &NES_cpu::addrZeroPage, 3},
+    /*$C5*/ {&NES_cpu::compareA, &NES_cpu::addrZeroPage, 3},
+    /*$C6*/ {&NES_cpu::decrementMemory, &NES_cpu::addrZeroPage, 5},
+    /*$C7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$C8*/ {&NES_cpu::incrementY, &NES_cpu::addrImplicit, 2},
+    /*$C9*/ {&NES_cpu::compareA, &NES_cpu::addrImmediate, 2},
+    /*$CA*/ {&NES_cpu::decrementX, &NES_cpu::addrImplicit, 2},
+    /*$CB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$CC*/ {&NES_cpu::compareY, &NES_cpu::addrAbsolute, 4},
+    /*$CD*/ {&NES_cpu::compareA, &NES_cpu::addrAbsolute, 4},
+    /*$CE*/ {&NES_cpu::decrementMemory, &NES_cpu::addrAbsolute, 6},
+    /*$CF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$D0*/ {&NES_cpu::branchIfNotEqual, &NES_cpu::addrRelative},
-    /*$D1*/ {&NES_cpu::compareA, &NES_cpu::addrIndirectY},
-    /*$D2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$D3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$D4*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$D5*/ {&NES_cpu::compareA, &NES_cpu::addrZeroPageX},
-    /*$D6*/ {&NES_cpu::decrementMemory, &NES_cpu::addrZeroPageX},
-    /*$D7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$D8*/ {&NES_cpu::clearD, &NES_cpu::addrImplicit},
-    /*$D9*/ {&NES_cpu::compareA, &NES_cpu::addrAbsoluteY},
-    /*$DA*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$DB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$DC*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$DD*/ {&NES_cpu::compareA, &NES_cpu::addrAbsoluteX},
-    /*$DE*/ {&NES_cpu::decrementMemory, &NES_cpu::addrAbsoluteX},
-    /*$DF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$D0*/ {&NES_cpu::branchIfNotEqual, &NES_cpu::addrRelative, 2},
+    /*$D1*/ {&NES_cpu::compareA, &NES_cpu::addrIndirectY, 6},
+    /*$D2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$D3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$D4*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$D5*/ {&NES_cpu::compareA, &NES_cpu::addrZeroPageX, 4},
+    /*$D6*/ {&NES_cpu::decrementMemory, &NES_cpu::addrZeroPageX, 6},
+    /*$D7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$D8*/ {&NES_cpu::clearD, &NES_cpu::addrImplicit, 2},
+    /*$D9*/ {&NES_cpu::compareA, &NES_cpu::addrAbsoluteY, 4},
+    /*$DA*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$DB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$DC*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$DD*/ {&NES_cpu::compareA, &NES_cpu::addrAbsoluteX, 4},
+    /*$DE*/ {&NES_cpu::decrementMemory, &NES_cpu::addrAbsoluteX, 6},
+    /*$DF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$E0*/ {&NES_cpu::compareX, &NES_cpu::addrImmediate},
-    /*$E1*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrIndirectX},
-    /*$E2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$E3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$E4*/ {&NES_cpu::compareX, &NES_cpu::addrZeroPage},
-    /*$E5*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrZeroPage},
-    /*$E6*/ {&NES_cpu::incrementMemory, &NES_cpu::addrZeroPage},
-    /*$E7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$E8*/ {&NES_cpu::incrementX, &NES_cpu::addrImplicit},
-    /*$E9*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrImmediate},
-    /*$EA*/ {&NES_cpu::noOperation, &NES_cpu::addrImplicit},
-    /*$EB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$EC*/ {&NES_cpu::compareX, &NES_cpu::addrAbsolute},
-    /*$ED*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsolute},
-    /*$EE*/ {&NES_cpu::incrementMemory, &NES_cpu::addrAbsolute},
-    /*$EF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$E0*/ {&NES_cpu::compareX, &NES_cpu::addrImmediate, 2},
+    /*$E1*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrIndirectX, 6},
+    /*$E2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$E3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$E4*/ {&NES_cpu::compareX, &NES_cpu::addrZeroPage, 3},
+    /*$E5*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrZeroPage, 3},
+    /*$E6*/ {&NES_cpu::incrementMemory, &NES_cpu::addrZeroPage, 5},
+    /*$E7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$E8*/ {&NES_cpu::incrementX, &NES_cpu::addrImplicit, 2},
+    /*$E9*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrImmediate, 2},
+    /*$EA*/ {&NES_cpu::noOperation, &NES_cpu::addrImplicit, 2},
+    /*$EB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$EC*/ {&NES_cpu::compareX, &NES_cpu::addrAbsolute, 4},
+    /*$ED*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsolute, 4},
+    /*$EE*/ {&NES_cpu::incrementMemory, &NES_cpu::addrAbsolute, 6},
+    /*$EF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 
-    /*$F0*/ {&NES_cpu::branchIfEqual, &NES_cpu::addrRelative},
-    /*$F1*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrIndirectY},
-    /*$F2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$F3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$F4*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$F5*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrZeroPageX},
-    /*$F6*/ {&NES_cpu::incrementMemory, &NES_cpu::addrZeroPageX},
-    /*$F7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$F8*/ {&NES_cpu::setD, &NES_cpu::addrImplicit},
-    /*$F9*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsoluteY},
-    /*$FA*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$FB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$FC*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
-    /*$FD*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsoluteX},
-    /*$FE*/ {&NES_cpu::incrementMemory, &NES_cpu::addrAbsoluteX},
-    /*$FF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode},
+    /*$F0*/ {&NES_cpu::branchIfEqual, &NES_cpu::addrRelative, 2},
+    /*$F1*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrIndirectY, 5},
+    /*$F2*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$F3*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$F4*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$F5*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrZeroPageX, 4},
+    /*$F6*/ {&NES_cpu::incrementMemory, &NES_cpu::addrZeroPageX, 6},
+    /*$F7*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$F8*/ {&NES_cpu::setD, &NES_cpu::addrImplicit, 2},
+    /*$F9*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsoluteY, 4},
+    /*$FA*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$FB*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$FC*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
+    /*$FD*/ {&NES_cpu::subtractWithCarry, &NES_cpu::addrAbsoluteX, 4},
+    /*$FE*/ {&NES_cpu::incrementMemory, &NES_cpu::addrAbsoluteX, 6},
+    /*$FF*/ {&NES_cpu::handleInvalidOpcode, &NES_cpu::handleInvalidAddressingMode, 2},
 };
 
 // Addressing modes
@@ -720,6 +723,9 @@ void NES_cpu::branchIfCarryClear(uint16_t address)
     if (getFlag(C) == 0)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -728,6 +734,9 @@ void NES_cpu::branchIfCarrySet(uint16_t address)
     if (getFlag(C) == 1)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -736,6 +745,9 @@ void NES_cpu::branchIfEqual(uint16_t address)
     if (getFlag(Z) == 1)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -744,6 +756,9 @@ void NES_cpu::branchIfNotEqual(uint16_t address)
     if (getFlag(Z) == 0)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -752,6 +767,9 @@ void NES_cpu::branchIfPlus(uint16_t address)
     if (getFlag(N) == 0)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -760,6 +778,9 @@ void NES_cpu::branchIfMinus(uint16_t address)
     if (getFlag(N) == 1)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -768,6 +789,9 @@ void NES_cpu::branchIfOverflowClear(uint16_t address)
     if (getFlag(V) == 0)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -776,6 +800,9 @@ void NES_cpu::branchIfOverflowSet(uint16_t address)
     if (getFlag(V) == 1)
     {
         pc_ = address;
+
+        if ((pc_ & 0xFF00) != (address & 0xFF00))
+            cycle_++;
     }
 }
 
@@ -812,7 +839,7 @@ void NES_cpu::interruptSoftware()
     // push status flags to stack
     bus_->writeCPU(0x0100 + sp_, p_);
 
-    pc_ = 0xFFFE;
+    pc_ = bus_->readCPU(0xFFFE) | (bus_->readCPU(0xFFFF) << 8); // set PC to IRQ vector
 
     setFlag(I, 1); // disable interrupts
     setFlag(B, 1); // set B flag
@@ -891,7 +918,7 @@ void NES_cpu::printState()
 {
     std::cout << "PC: " << std::hex << pc_ << ", SP: " << std::hex << (int)sp_ << ", A: " << std::hex << (int)A_
               << ", X: " << std::hex << (int)X_ << ", Y: " << std::hex << (int)Y_
-              << ", NV1BDIZC: " << std::bitset<8>(p_) << std::endl;
+              << ", NV1BDIZC: " << std::bitset<8>(p_) << ", Cycles: " << std::dec << cycle_ << std::endl;
 }
 
 // Error handling

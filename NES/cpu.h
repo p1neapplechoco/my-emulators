@@ -45,6 +45,7 @@ public:
     {
         instr operation;
         addrMode addressingMode;
+        uint8_t cycles;
     };
 
     static Instruction instructionSet[256];
@@ -159,6 +160,8 @@ private:
     uint16_t pc_;
     uint8_t sp_;
     uint8_t p_; // Status flags
+
+    uint64_t cycle_;
 
     NES_bus *bus_;
 };

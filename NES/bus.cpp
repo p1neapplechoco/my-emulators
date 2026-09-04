@@ -12,7 +12,7 @@ uint8_t NES_bus::readCPU(uint16_t addr)
         data = ram_[addr & 0x07FF];
 
     else if (addr >= 0x2000 && addr <= 0x3FFF)
-        data = ppu_->readCPU(addr & 0x0007); // PPU registers are mirrored every 8 bytes
+        data = ppu_->readCPU(addr);
 
     else if (addr >= 0x6000)
         data = cartridge_->readCPU(addr);
@@ -26,7 +26,7 @@ void NES_bus::writeCPU(uint16_t addr, uint8_t data)
         ram_[addr & 0x07FF] = data;
 
     else if (addr >= 0x2000 && addr <= 0x3FFF)
-        ppu_->writeCPU(addr & 0x0007, data); // PPU
+        ppu_->writeCPU(addr, data); // PPU
 
     else if (addr >= 0x6000 && addr <= 0x7FFF)
         cartridge_->writeCPU(addr, data);
