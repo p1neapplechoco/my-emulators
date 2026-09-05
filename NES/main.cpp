@@ -23,6 +23,8 @@ int main()
     NES_ppu ppu;
     ppu.initialize();
     bus.setPPU(ppu);
+    ppu.setBus(bus);
+    ppu.setCartridge(cartridge);
 
     NES_cpu cpu;
     bus.setCPU(cpu);

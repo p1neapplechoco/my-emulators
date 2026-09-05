@@ -417,19 +417,25 @@ uint16_t NES_cpu::addrAbsoluteY()
 uint16_t NES_cpu::addrIndirectX()
 {
     uint8_t baseAddress = bus_->readCPU(pc_++);
+
     uint8_t effectiveAddressLow = bus_->readCPU((baseAddress + X_) & 0xFF);
     uint8_t effectiveAddressHigh = bus_->readCPU((baseAddress + X_ + 1) & 0xFF);
+
     uint16_t effectiveAddress = (effectiveAddressHigh << 8) | effectiveAddressLow;
+
     return effectiveAddress;
 }
 
 uint16_t NES_cpu::addrIndirectY()
 {
     uint8_t baseAddress = bus_->readCPU(pc_++);
-    uint8_t effectiveAddressLow = bus_->readCPU((baseAddress + Y_) & 0xFF);
-    uint8_t effectiveAddressHigh = bus_->readCPU((baseAddress + Y_ + 1) & 0xFF);
+
+    uint8_t effectiveAddressLow = bus_->readCPU((baseAddress) & 0xFF);
+    uint8_t effectiveAddressHigh = bus_->readCPU((baseAddress + 1) & 0xFF);
+
     uint16_t effectiveAddress = (effectiveAddressHigh << 8) | effectiveAddressLow;
-    return effectiveAddress;
+
+    return effectiveAddress + Y_;
 }
 
 //// Others
@@ -468,10 +474,15 @@ uint16_t NES_cpu::addrRelative()
 
 uint16_t NES_cpu::addrIndirect()
 {
-    uint8_t lowByte = bus_->readCPU(pc_++);
-    uint8_t highByte = bus_->readCPU(pc_++);
+    uint8_t ptrLow = bus_->readCPU(pc_++);
+    uint8_t ptrHigh = bus_->readCPU(pc_++);
+    uint16_t ptr = (ptrHigh << 8) | ptrLow;
+
+    uint8_t lowByte = bus_->readCPU(ptr);
+    uint8_t highByte = bus_->readCPU((ptr & 0xFF00) | ((ptr + 1) & 0xFF));
+
     uint16_t address = (highByte << 8) | lowByte;
-    return bus_->readCPU(address);
+    return address;
 }
 
 // Access based

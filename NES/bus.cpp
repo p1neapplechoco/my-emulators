@@ -34,3 +34,7 @@ void NES_bus::writeCPU(uint16_t addr, uint8_t data)
     else if (addr >= 0x8000)
         cartridge_->writeCPU(addr, data);
 }
+
+void NES_bus::writePPU(uint16_t addr, uint8_t data)
+{
+}
