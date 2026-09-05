@@ -43,9 +43,9 @@ void NES_cpu::initialize()
 
 uint8_t NES_cpu::emulateCycle()
 {
-    printState();
+    // printState();
     uint8_t opcode = bus_->readCPU(pc_++);
-    std::cout << "opcode: " << std::hex << (int)opcode << std::dec << std::endl;
+    // std::cout << "opcode: " << std::hex << (int)opcode << std::dec << std::endl;
 
     Instruction instruction = instructionSet[opcode];
 
@@ -102,7 +102,7 @@ void NES_cpu::nmi()
 
     std::cout << "NMI triggered. Jumping to address: " << std::hex << pc_ << std::dec << std::endl;
     printState();
-    throw std::runtime_error("NMI triggered. Halting CPU for debugging.");
+    // throw std::runtime_error("NMI triggered. Halting CPU for debugging.");
 }
 
 // INSTRUCTION SET
@@ -840,8 +840,22 @@ void NES_cpu::jumpTo(uint16_t address)
 
 void NES_cpu::jumpToSubroutine(uint16_t address)
 {
-    bus_->writeCPU(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
-    bus_->writeCPU(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
+    /*
+    JSR - Jump to Subroutine
+
+    push PC + 2 high byte to stack
+    push PC + 2 low byte to stack
+    PC = memory
+
+    JSR pushes the current program counter to the stack and then sets the program counter to a new value. This allows code to call a function and return with RTS back to the instruction after the JSR.
+
+    Notably, the return address on the stack points 1 byte before the start of the next instruction, rather than directly at the instruction. This is because RTS increments the program counter before the next instruction is fetched. This differs from the return address pushed by interrupts and used by RTI, which points directly at the next instruction.
+    */
+
+    uint16_t returnAddress = pc_ - 1; // Store the return address (current PC - 1)
+
+    bus_->writeCPU(0x0100 + sp_, (returnAddress >> 8) & 0xFF); // push high byte
+    bus_->writeCPU(0x0100 + sp_ - 1, returnAddress & 0xFF);    // push low byte
     sp_ -= 2;
 
     pc_ = address;
@@ -849,6 +863,16 @@ void NES_cpu::jumpToSubroutine(uint16_t address)
 
 void NES_cpu::returnFromSubroutine()
 {
+    /*
+    RTS - Return from Subroutine
+
+    pull PC low byte from stack
+    pull PC high byte from stack
+    PC = PC + 1
+
+    RTS pulls an address from the stack into the program counter and then increments the program counter. It is normally used at the end of a function to return to the instruction after the JSR that called the function. However, RTS is also sometimes used to implement jump tables (see Jump table and RTS Trick).
+    */
+
     uint8_t lowByte = bus_->readCPU(0x0100 + sp_ + 1);
     uint8_t highByte = bus_->readCPU(0x0100 + sp_ + 2);
     sp_ += 2;
@@ -858,17 +882,30 @@ void NES_cpu::returnFromSubroutine()
 
 void NES_cpu::interruptSoftware()
 {
-    bus_->writeCPU(0x0100 + sp_, (pc_ >> 8) & 0xFF); // push high byte
-    bus_->writeCPU(0x0100 + sp_ - 1, pc_ & 0xFF);    // push low byte
-    sp_ -= 2;
+    /*
+    BRK - Break (software IRQ)
 
-    // push status flags to stack
-    bus_->writeCPU(0x0100 + sp_, p_);
+    push PC + 2 high byte to stack
+    push PC + 2 low byte to stack
+    push NV11DIZC flags to stack
+    PC = ($FFFE)
 
-    pc_ = bus_->readCPU(0xFFFE) | (bus_->readCPU(0xFFFF) << 8); // set PC to IRQ vector
+    BRK triggers an interrupt request (IRQ). IRQs are normally triggered by external hardware, and BRK is the only way to do it in software. Like a typical IRQ, it pushes the current program counter and processor flags to the stack, sets the interrupt disable flag, and jumps to the IRQ handler. Unlike a typical IRQ, it sets the break flag in the flags byte that is pushed to the stack (like PHP) and it triggers an interrupt even if the interrupt disable flag is set. Notably, the return address that is pushed to the stack skips the byte after the BRK opcode. For this reason, BRK is often considered a 2-byte instruction with an unused immediate.
 
-    setFlag(I, 1); // disable interrupts
-    setFlag(B, 1); // set B flag
+    Unfortunately, a 6502 bug allows the BRK IRQ to be overridden by an NMI occurring at the same time. In this case, only the NMI handler is called; the IRQ handler is skipped. However, the break flag is still set in the flags byte pushed to the stack, so the NMI handler can detect that this occurred (albeit slowly) by checking this flag.
+
+    Because BRK uses the value $00, any byte in a programmable ROM can be overwritten with a BRK instruction to send execution to an IRQ handler. This is useful for patching one-time programmable ROMs. BRK can also be used as a system call mechanism, and the unused byte can be used by software as an argument (although it is inconvenient to access). In the context of NES games, BRK is often most useful as a crash handler, where the unused program space is filled with $00 and the IRQ handler displays debugging information or otherwise handles the crash in a clean way.
+    */
+
+    uint16_t returnAddress = pc_ + 1; // Store the return address (current PC + 1)
+
+    bus_->writeCPU(0x0100 + sp_, (returnAddress >> 8) & 0xFF); // push high byte
+    bus_->writeCPU(0x0100 + sp_ - 1, returnAddress & 0xFF);    // push low byte
+    bus_->writeCPU(0x0100 + sp_ - 2, p_);                      // push status flags
+    sp_ -= 3;
+
+    setFlag(I, 1); // Set the interrupt disable flag
+    setFlag(B, 1); // Set the break flag
 }
 
 void NES_cpu::returnFromInterrupt()
